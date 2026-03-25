@@ -1,0 +1,4 @@
+anthropic>=0.25.0
+opencv-python>=4.9.0
+python-telegram-bot>=21.0
+PyYAML>=6.0
