@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>camIA — Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:     #07090d; --surface: #0d1117; --border: rgba(255,255,255,.07);
+      --cyan:   #22d3ee; --green: #4ade80; --red: #f87171;
+      --orange: #fb923c; --purple: #a78bfa; --muted: #475569;
+    }
+    *{box-sizing:border-box}
+    body{background:var(--bg);color:#cbd5e1;font-family:ui-monospace,'SF Mono',monospace;min-height:100vh}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:12px}
+    /* dots */
+    .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+    .dot-g{background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2s infinite}
+    .dot-r{background:var(--red)}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    /* tabs */
+    .tab-bar{display:flex;gap:2px;padding:0 24px;border-bottom:1px solid var(--border)}
+    .tab{font-size:.75rem;font-weight:600;padding:12px 20px;border:none;background:none;
+      color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;
+      font-family:inherit;transition:color .15s,border-color .15s;margin-bottom:-1px}
+    .tab:hover{color:#94a3b8}
+    .tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+    /* buttons */
+    .btn{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;
+      padding:7px 18px;border-radius:7px;cursor:pointer;border:none;font-family:inherit;transition:opacity .15s}
+    .btn:hover{opacity:.85}
+    .btn-c{background:var(--cyan);color:#07090d}
+    .btn-r{background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);color:var(--red)}
+    .btn-g{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:var(--green)}
+    .btn-sm{font-size:.68rem;padding:4px 12px;border-radius:5px}
+    /* form */
+    .lbl{font-size:.63rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);display:block;margin-bottom:5px}
+    .inp{width:100%;background:#0d1117;border:1px solid rgba(255,255,255,.1);border-radius:8px;
+      padding:9px 13px;color:#f1f5f9;font-family:inherit;font-size:.82rem;outline:none;transition:border-color .15s}
+    .inp:focus{border-color:var(--cyan)}
+    .inp::placeholder{color:#334155}
+    textarea.inp{resize:vertical;min-height:68px;line-height:1.5}
+    .hint{font-size:.63rem;color:#334155;margin-top:4px}
+    .pw-wrap{position:relative}
+    .pw-wrap .inp{padding-right:56px}
+    .pw-eye{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:.65rem;color:var(--muted);cursor:pointer;user-select:none}
+    .pw-eye:hover{color:#94a3b8}
+    /* section card */
+    .sec{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:14px}
+    .sec-title{font-size:.7rem;text-transform:uppercase;letter-spacing:.14em;color:var(--cyan);
+      margin-bottom:18px;display:flex;align-items:center;gap:8px}
+    /* stats */
+    .sv{font-size:1.7rem;font-weight:700;line-height:1}
+    .sl{font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-top:5px}
+    /* log */
+    #logBox{height:185px;overflow-y:auto;font-size:.7rem;line-height:1.7}
+    #logBox::-webkit-scrollbar{width:3px}
+    #logBox::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+    .la{color:var(--red)} .lm{color:var(--orange)} .li{color:#64748b} .le{color:var(--purple)}
+    .log-filter-btn{font-size:.65rem;padding:4px 11px;border-radius:5px;border:1px solid var(--border);
+      background:none;color:var(--muted);cursor:pointer;font-family:inherit;transition:all .12s}
+    .log-filter-btn.active{background:rgba(34,211,238,.12);border-color:rgba(34,211,238,.3);color:var(--cyan)}
+    /* alert feed */
+    #alertFeed{max-height:455px;overflow-y:auto}
+    #alertFeed::-webkit-scrollbar{width:3px}
+    #alertFeed::-webkit-scrollbar-thumb{background:var(--border)}
+    .snap-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;
+      cursor:pointer;transition:background .12s;border:1px solid transparent;margin-bottom:2px}
+    .snap-row:hover{background:rgba(255,255,255,.04);border-color:var(--border)}
+    .snap-row img{width:78px;height:52px;object-fit:cover;border-radius:6px;flex-shrink:0}
+    /* cameras */
+    .cam-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px}
+    .cam-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+    .feed-wrap{position:relative;aspect-ratio:16/9;background:#0a0c10;overflow:hidden}
+    .feed-wrap img{width:100%;height:100%;object-fit:cover}
+    .feed-ph{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+      justify-content:center;color:var(--muted);gap:6px;font-size:.75rem}
+    .feed-badge{position:absolute;top:8px;left:8px;display:flex;align-items:center;gap:5px;
+      background:rgba(0,0,0,.6);border-radius:99px;padding:3px 10px;font-size:.65rem;color:#fff;font-weight:600}
+    .feed-name{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.6);
+      border-radius:5px;padding:2px 8px;font-size:.68rem;color:#e2e8f0}
+    .cam-footer{padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border)}
+    /* settings cam cards */
+    .cam-item{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px}
+    .cam-item-head{display:flex;align-items:center;padding:12px 16px;cursor:pointer;
+      background:rgba(255,255,255,.02);transition:background .12s;gap:10px}
+    .cam-item-head:hover{background:rgba(255,255,255,.04)}
+    .cam-item-body{padding:18px;border-top:1px solid var(--border);display:none}
+    .cam-item.open .cam-item-body{display:block}
+    .cam-item.open .cam-chevron{transform:rotate(90deg)}
+    .cam-chevron{font-size:.75rem;color:var(--muted);transition:transform .2s;flex-shrink:0}
+    /* chart */
+    .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
+    /* badges */
+    .badge-r{font-size:.65rem;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35);color:var(--red);padding:2px 9px;border-radius:99px}
+    .badge-g{font-size:.65rem;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:var(--green);padding:2px 9px;border-radius:99px}
+    /* modal */
+    #modal{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);align-items:center;justify-content:center}
+    #modal.open{display:flex}
+    #modal img{max-width:860px;width:90vw;border-radius:12px}
+    /* toast */
+    #toast{position:fixed;bottom:26px;right:26px;z-index:200;padding:9px 18px;border-radius:9px;
+      font-size:.78rem;font-weight:600;display:none}
+    #toast.ok{background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.4);color:var(--green)}
+    #toast.er{background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);color:var(--red)}
+    .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+    @media(max-width:640px){.g2,.g3{grid-template-columns:1fr}}
+    .label{font-size:.6rem;text-transform:uppercase;letter-spacing:.13em;color:var(--muted)}
+  </style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════════════════════ -->
+<header style="border-bottom:1px solid var(--border);padding:13px 24px">
+  <div style="max-width:1440px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="color:var(--cyan);font-size:1.3rem">◉</span>
+      <div>
+        <div style="color:#f1f5f9;font-weight:700;font-size:1rem;letter-spacing:.04em">camIA</div>
+        <div class="label" style="margin-top:1px">Intelligent CCTV Monitor</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:99px;padding:5px 13px">
+        <span class="dot" id="hDot"></span>
+        <span style="font-size:.74rem" id="hTxt">Loading…</span>
+      </div>
+      <button class="btn btn-c" id="startAllBtn" onclick="ctrlAll('start')">▶ Start All</button>
+      <button class="btn btn-r"  id="stopAllBtn"  onclick="ctrlAll('stop')" style="display:none">■ Stop All</button>
+    </div>
+  </div>
+</header>
+
+<!-- ══ TABS ════════════════════════════════════════════════════════ -->
+<div class="tab-bar" style="max-width:1440px;margin:0 auto">
+  <button class="tab active" id="tab-dash"    onclick="switchTab('dash')">⬛ Dashboard</button>
+  <button class="tab"        id="tab-stats"   onclick="switchTab('stats')">📊 Stats</button>
+  <button class="tab"        id="tab-settings" onclick="switchTab('settings')">⚙ Settings</button>
+</div>
+
+<!-- ══ DASHBOARD ═══════════════════════════════════════════════════ -->
+<div id="p-dash" style="max-width:1440px;margin:auto;padding:22px;display:flex;flex-direction:column;gap:18px">
+
+  <!-- stat cards -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+    <div class="card" style="padding:15px"><div class="sv" style="color:var(--cyan)" id="sAlerts">{{ total_alerts }}</div><div class="sl">Total Alerts</div></div>
+    <div class="card" style="padding:15px"><div class="sv" style="color:var(--orange)" id="sMotion">—</div><div class="sl">Motion Events</div></div>
+    <div class="card" style="padding:15px"><div class="sv" style="color:var(--green)">{{ config.get('motion_sensitivity',500) }}</div><div class="sl">Sensitivity (px)</div></div>
+    <div class="card" style="padding:15px"><div class="sv" style="color:var(--purple)">{{ cameras|length }}</div><div class="sl">Cameras</div></div>
+  </div>
+
+  <!-- feeds + alert feed -->
+  <div style="display:grid;grid-template-columns:3fr 2fr;gap:18px;align-items:start">
+
+    <!-- Camera grid -->
+    <div>
+      <div class="label" style="margin-bottom:10px">Live Feeds</div>
+      <div class="cam-grid" id="camGrid">
+        {% for cam in cameras %}
+        <div class="cam-card">
+          <div class="feed-wrap">
+            <img src="/video_feed/{{ cam.id }}" onerror="feedErr(this)" alt="feed"/>
+            <div class="feed-ph" id="ph-{{ cam.id }}">
+              <span style="font-size:2rem">📷</span><span>No feed</span>
+              <button class="btn btn-c btn-sm" onclick="switchTab('settings')">Settings →</button>
+            </div>
+            <div class="feed-badge">
+              <span class="dot {% if running_map.get(cam.id) %}dot-g{% else %}dot-r{% endif %}" id="dot-{{ cam.id }}"></span>
+              <span>LIVE</span>
+            </div>
+            <div class="feed-name">{{ cam.camera_name }}</div>
+          </div>
+          <div class="cam-footer">
+            <div style="font-size:.68rem;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px" title="{{ cam.user_condition }}">
+              {{ cam.user_condition or '—' }}
+            </div>
+            <div style="display:flex;gap:6px">
+              {% if running_map.get(cam.id) %}
+                <button class="btn btn-r btn-sm" id="cb-{{ cam.id }}" onclick="ctrlCam('{{ cam.id }}','stop')">■ Stop</button>
+              {% else %}
+                <button class="btn btn-c btn-sm" id="cb-{{ cam.id }}" onclick="ctrlCam('{{ cam.id }}','start')">▶ Start</button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div class="card" style="padding:40px;text-align:center;color:var(--muted)">
+          <div style="font-size:2.5rem;margin-bottom:8px">📷</div>
+          <div style="font-size:.8rem">No cameras configured</div>
+          <button class="btn btn-c" style="margin-top:12px;font-size:.72rem;padding:6px 14px" onclick="switchTab('settings')">Add Camera →</button>
+        </div>
+        {% endfor %}
+      </div>
+      {% if cameras|length == 1 %}
+      <!-- condition + config bar for single cam -->
+      <div class="card" style="margin-top:10px;overflow:hidden">
+        <div style="padding:11px 15px;border-bottom:1px solid var(--border)">
+          <div class="label" style="margin-bottom:3px">Monitoring Condition</div>
+          <div style="font-size:.8rem;color:var(--cyan);font-style:italic">"{{ cameras[0].user_condition or 'Not configured' }}"</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr)">
+          <div style="padding:9px 14px;border-right:1px solid var(--border)">
+            <div class="label">Interval</div><div style="font-size:.8rem;color:#f1f5f9;margin-top:2px">{{ cameras[0].check_interval_seconds }}s</div>
+          </div>
+          <div style="padding:9px 14px;border-right:1px solid var(--border)">
+            <div class="label">Telegram</div>
+            <div style="font-size:.8rem;margin-top:2px;color:{% if config.get('telegram_bot_token') and 'your-bot' not in config.get('telegram_bot_token','') %}var(--green){% else %}var(--red){% endif %}">
+              {% if config.get('telegram_bot_token') and 'your-bot' not in config.get('telegram_bot_token','') %}✓ OK{% else %}✗ Not set{% endif %}
+            </div>
+          </div>
+          <div style="padding:9px 14px">
+            <div class="label">Cooldown</div><div style="font-size:.8rem;color:#f1f5f9;margin-top:2px">{{ cameras[0].alert_cooldown_seconds }}s</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Alert feed -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px">
+        <div class="label">Recent Alerts</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="badge-r" id="alertBadge">{{ snapshots|length }} alert{% if snapshots|length != 1 %}s{% endif %}</span>
+          <button class="btn btn-r btn-sm" id="delSelBtn" style="display:none" onclick="deleteSelected()">✕ Delete</button>
+        </div>
+      </div>
+      <!-- Search box -->
+      <div style="position:relative;margin-bottom:8px">
+        <input class="inp" id="alertSearch" type="text" placeholder="Search alerts…"
+               oninput="filterAlerts(this.value)" style="font-size:.75rem;padding:7px 12px 7px 30px"/>
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:.75rem;color:var(--muted)">🔍</span>
+      </div>
+      <div id="alertFeed">
+        {% if snapshots %}
+          {% for snap in snapshots %}
+          <div class="snap-row" data-fn="{{ snap.filename }}">
+            <input type="checkbox" class="snap-cb" onchange="cbChange()"
+                   style="accent-color:var(--cyan);flex-shrink:0;cursor:pointer" onclick="event.stopPropagation()"/>
+            <img src="/snapshots/{{ snap.filename }}" alt="snap" onerror="this.style.display='none'"
+                 onclick="openModal('/snapshots/{{ snap.filename }}','{{ snap.filename }}')"/>
+            <div style="flex:1;min-width:0" onclick="openModal('/snapshots/{{ snap.filename }}','{{ snap.filename }}')">
+              <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+                <span style="font-size:.75rem">🚨</span>
+                <span style="font-size:.72rem;color:#f1f5f9;font-weight:600">Alert</span>
+              </div>
+              <div style="font-size:.67rem;color:var(--muted)">{{ snap.datetime }}</div>
+              <div style="font-size:.62rem;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px">{{ snap.filename }}</div>
+            </div>
+            <button class="btn btn-r" style="font-size:.65rem;padding:3px 8px;border-radius:5px;flex-shrink:0"
+                    onclick="event.stopPropagation();deleteSingle('{{ snap.filename }}',this.closest('.snap-row'))">✕</button>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="card" style="padding:38px;text-align:center">
+            <div style="font-size:2.5rem;margin-bottom:8px">🔍</div>
+            <div style="font-size:.8rem;color:var(--muted)">No alerts yet</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div><!-- /main grid -->
+
+  <!-- Log section -->
+  <div class="card" style="padding:15px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <div class="label" style="margin-right:4px">Log</div>
+      <!-- level filters -->
+      <button class="log-filter-btn active" id="lf-all"    onclick="setLogLevel('all')">ALL</button>
+      <button class="log-filter-btn"        id="lf-alert"  onclick="setLogLevel('alert')">ALERTS</button>
+      <button class="log-filter-btn"        id="lf-motion" onclick="setLogLevel('motion')">MOTION</button>
+      <button class="log-filter-btn"        id="lf-error"  onclick="setLogLevel('error')">ERRORS</button>
+      <!-- search -->
+      <input class="inp" id="logSearch" type="text" placeholder="Search log…"
+             oninput="applyLogFilter()" style="font-size:.7rem;padding:5px 10px;width:180px;flex:1;min-width:120px;max-width:260px"/>
+      <!-- camera filter -->
+      <select class="inp" id="logCamFilter" onchange="fetchLogs()" style="font-size:.7rem;padding:5px 10px;width:auto;color:#94a3b8;background:#0d1117">
+        <option value="all">All Cameras</option>
+        {% for cam in cameras %}
+        <option value="{{ cam.id }}">{{ cam.camera_name }}</option>
+        {% endfor %}
+      </select>
+      <button onclick="clearLogView()" style="font-size:.65rem;color:var(--muted);background:none;border:none;cursor:pointer;font-family:inherit;margin-left:auto">Clear view</button>
+    </div>
+    <div id="logBox">
+      {% for line in logs %}
+        <div class="{{ 'la' if 'ALERT' in line or 'alert sent' in line else ('lm' if 'Motion' in line or 'motion' in line else ('le' if 'ERROR' in line or 'WARNING' in line else 'li')) }}">{{ line }}</div>
+      {% else %}
+        <div class="li" style="text-align:center;padding:18px 0">No log entries yet…</div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div><!-- /dashboard -->
+
+<!-- ══ STATS ════════════════════════════════════════════════════════ -->
+<div id="p-stats" style="display:none;max-width:1440px;margin:auto;padding:22px;display:none;flex-direction:column;gap:18px">
+  <div id="statsLoading" style="text-align:center;padding:60px;color:var(--muted);font-size:.8rem">Loading charts…</div>
+  <div id="statsContent" style="display:none;flex-direction:column;gap:18px">
+    <!-- Alerts per day -->
+    <div class="chart-card">
+      <div class="label" style="margin-bottom:14px">Alerts — Last 7 Days</div>
+      <canvas id="chartDay" height="80"></canvas>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+      <!-- Per camera -->
+      <div class="chart-card">
+        <div class="label" style="margin-bottom:14px">Alerts by Camera</div>
+        <canvas id="chartCam" height="180"></canvas>
+      </div>
+      <!-- Per hour -->
+      <div class="chart-card">
+        <div class="label" style="margin-bottom:14px">Alerts by Hour of Day</div>
+        <canvas id="chartHour" height="180"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SETTINGS ════════════════════════════════════════════════════ -->
+<div id="p-settings" style="display:none;max-width:900px;margin:auto;padding:22px">
+
+  <!-- Global credentials -->
+  <div class="sec">
+    <div class="sec-title">🤖 Anthropic AI</div>
+    <label class="lbl">API Key</label>
+    <div class="pw-wrap">
+      <input class="inp" id="g_apikey" type="password" placeholder="sk-ant-… (leave blank to keep existing)" autocomplete="new-password"/>
+      <span class="pw-eye" onclick="togglePw('g_apikey',this)">SHOW</span>
+    </div>
+    <div class="hint">Stored in config.yaml and injected as ANTHROPIC_API_KEY when monitors start.
+      {% if config.get('anthropic_api_key') %}
+      <span class="badge-g" style="margin-left:6px">✓ Key saved</span>
+      {% else %}
+      <span class="badge-r" style="margin-left:6px">✗ No key</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">📱 Telegram Notifications</div>
+    <div class="g2">
+      <div>
+        <label class="lbl">Bot Token</label>
+        <div class="pw-wrap">
+          <input class="inp" id="g_tgtoken" type="password" autocomplete="new-password"
+                 placeholder="1234567890:ABCdef…"
+                 value="{{ '' if 'your-bot' in config.get('telegram_bot_token','') else config.get('telegram_bot_token','') }}"/>
+          <span class="pw-eye" onclick="togglePw('g_tgtoken',this)">SHOW</span>
+        </div>
+        <div class="hint">From <span style="color:var(--cyan)">@BotFather</span> on Telegram.</div>
+      </div>
+      <div>
+        <label class="lbl">Chat ID</label>
+        <input class="inp" id="g_tgchat" type="text"
+               placeholder="Send /start to your bot → visit getUpdates URL"
+               value="{{ '' if 'your-chat' in config.get('telegram_chat_id','') else config.get('telegram_chat_id','') }}"/>
+        <div class="hint">
+          After sending <code style="color:var(--cyan)">/start</code> to your bot, open:<br>
+          <code style="color:#94a3b8;font-size:.6rem;word-break:break-all">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+      <button class="btn btn-g btn-sm" id="tgTestBtn" onclick="testTelegram()">⚡ Test Connection</button>
+      <span id="tgTestResult" style="font-size:.72rem;color:var(--muted)"></span>
+    </div>
+  </div>
+
+  <!-- Cameras list -->
+  <div class="sec">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div class="sec-title" style="margin-bottom:0">📷 Cameras</div>
+      <button class="btn btn-c btn-sm" onclick="addCamera()">+ Add Camera</button>
+    </div>
+    <div id="camList"></div>
+  </div>
+
+  <!-- Save -->
+  <div style="display:flex;align-items:center;justify-content:flex-end;gap:14px;padding-top:4px">
+    <span id="saveMsg" style="font-size:.74rem;color:var(--muted)"></span>
+    <button class="btn btn-c" style="font-size:.8rem;padding:9px 26px" onclick="saveAll()">💾 Save All</button>
+  </div>
+</div>
+
+<!-- ══ MODAL ════════════════════════════════════════════════════════ -->
+<div id="modal" onclick="if(event.target===this)closeModal()">
+  <div style="text-align:center">
+    <img id="mImg" src="" alt=""/>
+    <div style="font-size:.72rem;color:#64748b;margin-top:8px" id="mCap"></div>
+    <a id="mDl" href="" download style="font-size:.72rem;color:var(--cyan);display:inline-block;margin-top:6px">⬇ Download</a>
+  </div>
+</div>
+<div id="toast"></div>
+
+<!-- ══ JS ═══════════════════════════════════════════════════════════ -->
+<script>
+// ── Tab switching ────────────────────────────────────────────────────
+function switchTab(name) {
+  ['dash','stats','settings'].forEach(t => {
+    const p = document.getElementById('p-'+t);
+    p.style.display = t===name ? (t==='dash'?'flex':'block') : 'none';
+    document.getElementById('tab-'+t).classList.toggle('active', t===name);
+  });
+  if (name === 'stats') loadStats();
+  if (name === 'settings') renderCamList();
+}
+
+// ── Clock ────────────────────────────────────────────────────────────
+setInterval(() => {
+  document.querySelectorAll('.live-clock').forEach(el => {
+    el.textContent = new Date().toTimeString().slice(0,8);
+  });
+}, 1000);
+
+// ── Status polling ───────────────────────────────────────────────────
+let _prevAlerts = {{ total_alerts }};
+
+async function pollStatus() {
+  try {
+    const d = await (await fetch('/api/status')).json();
+    const running = d.running;
+    const dot = document.getElementById('hDot'), txt = document.getElementById('hTxt');
+    const sa  = document.getElementById('startAllBtn'), so = document.getElementById('stopAllBtn');
+    dot.className = 'dot ' + (running ? 'dot-g' : 'dot-r');
+    txt.textContent = running ? 'Monitoring Active' : 'Monitor Stopped';
+    txt.style.color = running ? 'var(--green)' : 'var(--red)';
+    sa.style.display = running ? 'none' : ''; so.style.display = running ? '' : 'none';
+
+    document.getElementById('sAlerts').textContent = d.total_alerts;
+    document.getElementById('sMotion').textContent =
+      (d.logs||[]).filter(l=>/motion/i.test(l)).length;
+
+    // Per-camera buttons + dots
+    (d.cameras||[]).forEach(cam => {
+      const dot2 = document.getElementById('dot-'+cam.id);
+      const btn  = document.getElementById('cb-'+cam.id);
+      if (dot2) dot2.className = 'dot ' + (cam.running ? 'dot-g' : 'dot-r');
+      if (btn) {
+        if (cam.running) {
+          btn.textContent = '■ Stop'; btn.onclick = ()=>ctrlCam(cam.id,'stop');
+          btn.className = 'btn btn-r btn-sm';
+        } else {
+          btn.textContent = '▶ Start'; btn.onclick = ()=>ctrlCam(cam.id,'start');
+          btn.className = 'btn btn-c btn-sm';
+        }
+      }
+    });
+
+    if (d.total_alerts !== _prevAlerts) {
+      _prevAlerts = d.total_alerts;
+      refreshAlertFeed(d.recent_snapshots, d.total_alerts);
+    }
+    if (d.logs && d.logs.length) refreshLogBox(d.logs);
+  } catch(_) {}
+}
+pollStatus();
+setInterval(pollStatus, 5000);
+
+// ── Alert feed ───────────────────────────────────────────────────────
+function refreshAlertFeed(snaps, total) {
+  document.getElementById('alertBadge').textContent = total + ' alert' + (total!==1?'s':'');
+  if (!snaps||!snaps.length) return;
+  document.getElementById('alertFeed').innerHTML = snaps.map(s => `
+    <div class="snap-row" data-fn="${esc(s.filename)}">
+      <input type="checkbox" class="snap-cb" onchange="cbChange()" style="accent-color:var(--cyan);flex-shrink:0;cursor:pointer" onclick="event.stopPropagation()"/>
+      <img src="/snapshots/${esc(s.filename)}" onerror="this.style.display='none'"
+           onclick="openModal('/snapshots/${esc(s.filename)}','${esc(s.filename)}')"/>
+      <div style="flex:1;min-width:0" onclick="openModal('/snapshots/${esc(s.filename)}','${esc(s.filename)}')">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+          <span style="font-size:.75rem">🚨</span>
+          <span style="font-size:.72rem;color:#f1f5f9;font-weight:600">Alert</span>
+        </div>
+        <div style="font-size:.67rem;color:var(--muted)">${esc(s.datetime)}</div>
+        <div style="font-size:.62rem;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.filename)}</div>
+      </div>
+      <button class="btn btn-r" style="font-size:.65rem;padding:3px 8px;border-radius:5px;flex-shrink:0"
+              onclick="event.stopPropagation();deleteSingle('${esc(s.filename)}',this.closest('.snap-row'))">✕</button>
+    </div>`).join('');
+}
+
+function filterAlerts(q) {
+  document.querySelectorAll('#alertFeed .snap-row').forEach(row => {
+    row.style.display = row.dataset.fn.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+
+function cbChange() {
+  const any = document.querySelectorAll('#alertFeed .snap-cb:checked').length > 0;
+  document.getElementById('delSelBtn').style.display = any ? '' : 'none';
+}
+
+async function deleteSingle(fn, row) {
+  if (!confirm('Delete this snapshot?')) return;
+  const r = await fetch('/api/snapshot/' + encodeURIComponent(fn), {method:'DELETE'});
+  if ((await r.json()).status === 'deleted') {
+    row.remove();
+    _prevAlerts = Math.max(0, _prevAlerts - 1);
+    document.getElementById('alertBadge').textContent = _prevAlerts + ' alert' + (_prevAlerts!==1?'s':'');
+    document.getElementById('sAlerts').textContent = _prevAlerts;
+    toast('Snapshot deleted', 'ok');
+  }
+}
+
+async function deleteSelected() {
+  const checked = [...document.querySelectorAll('#alertFeed .snap-cb:checked')];
+  const fns = checked.map(cb => cb.closest('.snap-row').dataset.fn);
+  if (!confirm(`Delete ${fns.length} snapshot(s)?`)) return;
+  const r = await fetch('/api/snapshots/bulk_delete', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({filenames:fns})
+  });
+  const d = await r.json();
+  d.deleted.forEach(fn => document.querySelector(`[data-fn="${fn}"]`)?.remove());
+  cbChange();
+  toast(`Deleted ${d.deleted.length} snapshot(s)`, 'ok');
+  _prevAlerts = Math.max(0, _prevAlerts - d.deleted.length);
+  document.getElementById('alertBadge').textContent = _prevAlerts + ' alert' + (_prevAlerts!==1?'s':'');
+  document.getElementById('sAlerts').textContent = _prevAlerts;
+}
+
+// ── Log ──────────────────────────────────────────────────────────────
+let _logLevel = 'all';
+
+function setLogLevel(l) {
+  _logLevel = l;
+  ['all','alert','motion','error'].forEach(x =>
+    document.getElementById('lf-'+x).classList.toggle('active', x===l));
+  fetchLogs();
+}
+
+function applyLogFilter() { fetchLogs(); }
+
+async function fetchLogs() {
+  const search = document.getElementById('logSearch').value;
+  const cam    = document.getElementById('logCamFilter').value;
+  const r = await fetch(`/api/logs?level=${_logLevel}&search=${encodeURIComponent(search)}&camera=${cam}&limit=150`);
+  const d = await r.json();
+  refreshLogBox(d.logs);
+}
+
+function refreshLogBox(lines) {
+  const el = document.getElementById('logBox');
+  const atBot = el.scrollHeight - el.clientHeight <= el.scrollTop + 24;
+  el.innerHTML = lines.length ? lines.map(l => {
+    let cls='li';
+    if (/ALERT|alert sent/i.test(l)) cls='la';
+    else if (/Motion detected/i.test(l)) cls='lm';
+    else if (/ERROR|WARNING|Failed/i.test(l)) cls='le';
+    return `<div class="${cls}">${esc(l)}</div>`;
+  }).join('') : '<div class="li" style="text-align:center;padding:18px 0">No entries match…</div>';
+  if (atBot) el.scrollTop = el.scrollHeight;
+}
+
+function clearLogView() {
+  document.getElementById('logBox').innerHTML = '<div class="li" style="text-align:center;padding:18px 0">View cleared — still polling…</div>';
+}
+
+// ── Stats (Chart.js) ─────────────────────────────────────────────────
+let _charts = {};
+let _statsLoaded = false;
+
+async function loadStats() {
+  if (_statsLoaded) return;
+  const d = await (await fetch('/api/stats')).json();
+  document.getElementById('statsLoading').style.display = 'none';
+  const sc = document.getElementById('statsContent');
+  sc.style.display = 'flex';
+
+  const gridColor = 'rgba(255,255,255,0.05)';
+  const tickColor = '#475569';
+  const baseOpts  = {
+    plugins: {legend:{labels:{color:'#94a3b8',font:{family:'ui-monospace',size:11}}}},
+    scales: {
+      x:{grid:{color:gridColor},ticks:{color:tickColor,font:{family:'ui-monospace',size:10}}},
+      y:{grid:{color:gridColor},ticks:{color:tickColor,font:{family:'ui-monospace',size:10},stepSize:1}}
+    }
+  };
+
+  // Day chart
+  _charts.day = new Chart(document.getElementById('chartDay'), {
+    type: 'bar',
+    data: {
+      labels: d.per_day.labels,
+      datasets:[{label:'Alerts',data:d.per_day.data,
+        backgroundColor:'rgba(34,211,238,0.25)',borderColor:'rgba(34,211,238,0.8)',borderWidth:1,borderRadius:4}]
+    },
+    options: {...baseOpts}
+  });
+
+  // Camera doughnut
+  const camColors = ['rgba(34,211,238,.7)','rgba(74,222,128,.7)','rgba(251,146,60,.7)','rgba(167,139,250,.7)','rgba(248,113,113,.7)'];
+  _charts.cam = new Chart(document.getElementById('chartCam'), {
+    type: 'doughnut',
+    data: {
+      labels: d.per_camera.labels.length ? d.per_camera.labels : ['No data'],
+      datasets:[{data: d.per_camera.data.length ? d.per_camera.data : [1],
+        backgroundColor: d.per_camera.labels.length ? camColors.slice(0,d.per_camera.labels.length) : ['rgba(71,85,105,0.4)'],
+        borderColor:'transparent',borderWidth:2}]
+    },
+    options:{plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',font:{family:'ui-monospace',size:11},padding:14}}},cutout:'60%'}
+  });
+
+  // Hour bar
+  _charts.hour = new Chart(document.getElementById('chartHour'), {
+    type: 'bar',
+    data: {
+      labels: d.per_hour.labels,
+      datasets:[{label:'Alerts',data:d.per_hour.data,
+        backgroundColor:'rgba(251,146,60,0.25)',borderColor:'rgba(251,146,60,0.7)',borderWidth:1,borderRadius:3}]
+    },
+    options: {
+      ...baseOpts,
+      scales: {
+        x:{grid:{color:gridColor},ticks:{color:tickColor,font:{family:'ui-monospace',size:9},maxRotation:90,minRotation:45}},
+        y:{grid:{color:gridColor},ticks:{color:tickColor,font:{family:'ui-monospace',size:10},stepSize:1}}
+      }
+    }
+  });
+  _statsLoaded = true;
+}
+
+// ── Settings cameras ─────────────────────────────────────────────────
+let _cams = {{ cameras | tojson }};
+
+function renderCamList() {
+  const el = document.getElementById('camList');
+  if (!_cams.length) {
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);font-size:.8rem">No cameras yet. Click + Add Camera.</div>';
+    return;
+  }
+  el.innerHTML = _cams.map((cam, i) => `
+    <div class="cam-item" id="ci-${i}">
+      <div class="cam-item-head" onclick="toggleCamCard(${i})">
+        <span class="cam-chevron" id="chev-${i}">▸</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.82rem;color:#f1f5f9;font-weight:600">${esc(cam.camera_name||'Unnamed Camera')}</div>
+          <div style="font-size:.65rem;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(cam.rtsp_url||'No URL set')}</div>
+        </div>
+        <button class="btn btn-r btn-sm" onclick="event.stopPropagation();removeCam(${i})">✕ Remove</button>
+      </div>
+      <div class="cam-item-body" id="cb-body-${i}">
+        <div style="margin-bottom:14px">
+          <label class="lbl">RTSP Stream URL</label>
+          <input class="inp" type="text" id="ci_rtsp_${i}" value="${esc(cam.rtsp_url||'')}"
+                 placeholder="rtsp://user:pass@192.168.1.100:554/stream" onchange="syncCam(${i})"/>
+        </div>
+        <div class="g2" style="margin-bottom:14px">
+          <div>
+            <label class="lbl">Camera Name</label>
+            <input class="inp" type="text" id="ci_name_${i}" value="${esc(cam.camera_name||'')}"
+                   placeholder="e.g. Front Door" onchange="syncCam(${i})"/>
+          </div>
+          <div>
+            <label class="lbl">Camera ID <span style="color:#334155">(auto-generated, read-only)</span></label>
+            <input class="inp" type="text" value="${esc(cam.id||'')}" readonly style="color:var(--muted);cursor:not-allowed"/>
+          </div>
+        </div>
+        <div style="margin-bottom:14px">
+          <label class="lbl">Monitoring Condition</label>
+          <textarea class="inp" id="ci_cond_${i}" placeholder="e.g. alert me when a person enters the back door after dark" onchange="syncCam(${i})">${esc(cam.user_condition||'')}</textarea>
+          <div class="hint">Plain English — Claude Vision will evaluate each motion frame against this.</div>
+        </div>
+        <div class="g3">
+          <div>
+            <label class="lbl">Motion Sensitivity (px)</label>
+            <input class="inp" type="number" id="ci_sens_${i}" value="${cam.motion_sensitivity||500}" min="50" max="10000" onchange="syncCam(${i})"/>
+          </div>
+          <div>
+            <label class="lbl">Check Interval (s)</label>
+            <input class="inp" type="number" id="ci_interval_${i}" value="${cam.check_interval_seconds||2}" min="1" max="60" onchange="syncCam(${i})"/>
+          </div>
+          <div>
+            <label class="lbl">Alert Cooldown (s)</label>
+            <input class="inp" type="number" id="ci_cooldown_${i}" value="${cam.alert_cooldown_seconds||60}" min="10" onchange="syncCam(${i})"/>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleCamCard(i) {
+  const item = document.getElementById('ci-'+i);
+  item.classList.toggle('open');
+}
+
+function syncCam(i) {
+  _cams[i].rtsp_url               = document.getElementById(`ci_rtsp_${i}`).value;
+  _cams[i].camera_name            = document.getElementById(`ci_name_${i}`).value;
+  _cams[i].user_condition         = document.getElementById(`ci_cond_${i}`).value;
+  _cams[i].motion_sensitivity     = parseInt(document.getElementById(`ci_sens_${i}`).value)||500;
+  _cams[i].check_interval_seconds = parseInt(document.getElementById(`ci_interval_${i}`).value)||2;
+  _cams[i].alert_cooldown_seconds = parseInt(document.getElementById(`ci_cooldown_${i}`).value)||60;
+}
+
+function addCamera() {
+  _cams.push({
+    id: 'cam_' + Math.random().toString(36).slice(2,10),
+    rtsp_url:'', camera_name:'New Camera', user_condition:'',
+    check_interval_seconds:2, motion_sensitivity:500, alert_cooldown_seconds:60
+  });
+  renderCamList();
+  // Auto-expand the new one
+  const last = _cams.length - 1;
+  document.getElementById('ci-'+last)?.classList.add('open');
+}
+
+function removeCam(i) {
+  if (!confirm(`Remove camera "${_cams[i].camera_name}"?`)) return;
+  _cams.splice(i, 1);
+  renderCamList();
+}
+
+async function saveAll() {
+  // Sync any open cards
+  _cams.forEach((_, i) => { try { syncCam(i); } catch(_) {} });
+
+  const payload = {
+    cameras: _cams,
+    telegram_bot_token: document.getElementById('g_tgtoken').value.trim() || undefined,
+    telegram_chat_id:   document.getElementById('g_tgchat').value.trim()  || undefined,
+    anthropic_api_key:  document.getElementById('g_apikey').value.trim()  || undefined,
+  };
+  // Remove undefined keys
+  Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+
+  const msg = document.getElementById('saveMsg');
+  msg.textContent = 'Saving…'; msg.style.color = 'var(--muted)';
+  try {
+    const r = await fetch('/api/config/save', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+    if ((await r.json()).status === 'saved') {
+      msg.textContent = '✓ Saved'; msg.style.color = 'var(--green)';
+      document.getElementById('g_apikey').value = '';
+      toast('Configuration saved!', 'ok');
+      _statsLoaded = false; // invalidate stats cache
+    }
+  } catch(e) {
+    msg.textContent = '✗ Failed: ' + e.message; msg.style.color = 'var(--red)';
+    toast('Save failed', 'er');
+  }
+  setTimeout(() => msg.textContent = '', 4000);
+}
+
+// ── Monitor control ──────────────────────────────────────────────────
+async function ctrlAll(action) {
+  await fetch('/api/monitor/'+action, {method:'POST'});
+  setTimeout(pollStatus, 600);
+}
+
+async function ctrlCam(camId, action) {
+  await fetch(`/api/monitor/${camId}/${action}`, {method:'POST'});
+  setTimeout(pollStatus, 600);
+}
+
+// ── Telegram test ────────────────────────────────────────────────────
+async function testTelegram() {
+  const btn = document.getElementById('tgTestBtn');
+  const res = document.getElementById('tgTestResult');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const d = await (await fetch('/api/telegram/test', {method:'POST'})).json();
+    res.textContent = (d.status==='ok' ? '✓ ' : '✗ ') + d.message;
+    res.style.color = d.status==='ok' ? 'var(--green)' : 'var(--red)';
+    if (d.status==='ok') toast('Telegram message sent!','ok');
+  } catch(e) { res.textContent='✗ Request failed'; res.style.color='var(--red)'; }
+  btn.disabled = false; btn.textContent = '⚡ Test Connection';
+}
+
+// ── pw toggle ────────────────────────────────────────────────────────
+function togglePw(id, el) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type==='password' ? 'text' : 'password';
+  el.textContent = inp.type==='password' ? 'SHOW' : 'HIDE';
+}
+
+// ── modal ────────────────────────────────────────────────────────────
+function openModal(src, cap) {
+  document.getElementById('mImg').src = src;
+  document.getElementById('mCap').textContent = cap;
+  document.getElementById('mDl').href = src;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+// ── feed error ───────────────────────────────────────────────────────
+function feedErr(img) {
+  img.style.display = 'none';
+  const id = img.closest('.cam-card')?.querySelector('.feed-ph')?.id;
+  if (id) document.getElementById(id).style.display = 'flex';
+}
+
+// ── toast ────────────────────────────────────────────────────────────
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = type; t.style.display = 'block';
+  setTimeout(() => t.style.display='none', 3000);
+}
+
+// ── esc ──────────────────────────────────────────────────────────────
+function esc(s) {
+  if (typeof s !== 'string') s = String(s||'');
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── boot ─────────────────────────────────────────────────────────────
+document.getElementById('logBox').scrollTop = 99999;
+</script>
+</body>
+</html>

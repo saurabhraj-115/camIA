@@ -1,0 +1,17 @@
+# camIA — example configuration
+# Copy this to config.yaml and fill in your values,
+# OR configure everything through the web UI at http://localhost:6789
+
+anthropic_api_key: "sk-ant-..."
+
+telegram_bot_token: "1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ"
+telegram_chat_id:   "123456789"
+
+cameras:
+  - id: cam_main
+    rtsp_url:               "rtsp://username:password@192.168.1.100:554/stream"
+    camera_name:            "Front Door"
+    user_condition:         "alert me when a person enters through the front door"
+    check_interval_seconds: 2
+    motion_sensitivity:     500
+    alert_cooldown_seconds: 60

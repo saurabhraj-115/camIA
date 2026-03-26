@@ -1,0 +1,28 @@
+app = "camia"
+primary_region = "sin"
+
+[build]
+
+[env]
+  PORT = "6789"
+
+[http_service]
+  internal_port       = 6789
+  force_https         = true
+  auto_stop_machines  = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type       = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  memory   = "512mb"
+  cpu_kind = "shared"
+  cpus     = 1
+
+[[mounts]]
+  source      = "camia_data"
+  destination = "/mnt/data"

@@ -4,7 +4,9 @@ snapshots/
 alerts.log
 alerts_*.log
 static/
+.git
+.gitignore
+.env
 *.pyc
 __pycache__/
-.env
 .DS_Store

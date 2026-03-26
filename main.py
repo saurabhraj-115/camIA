@@ -16,7 +16,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
-        logging.FileHandler("alerts.log"),
+        logging.FileHandler(os.environ.get("CAMI_LOG", "alerts.log")),
         logging.StreamHandler(),
     ],
 )
@@ -42,7 +42,7 @@ def save_snapshot(frame, camera_name: str, timestamp: str) -> str:
 
 
 def main():
-    config = load_config()
+    config = load_config(os.environ.get("CAMI_CONFIG", "config.yaml"))
 
     rtsp_url = config["rtsp_url"]
     camera_name = config["camera_name"]

@@ -1,107 +1,157 @@
 # camIA
 
-A lightweight CCTV activity detection and alert system. Monitors an RTSP camera stream, detects motion, uses Claude Vision to check if the motion matches a condition you define in plain English, and sends a Telegram alert with a snapshot when matched.
+Intelligent CCTV monitoring with a web dashboard. Watches your camera streams, detects motion locally with OpenCV, sends frames to Claude Vision when motion is detected, and fires a Telegram alert with a snapshot when the scene matches a condition you define in plain English.
 
 ## How it works
 
 ```
-RTSP Stream → OpenCV frame capture
-  → MOG2 motion filter (local, free)
-    → [motion detected] → Claude Vision API
-      → Claude checks frame against your condition
-        → [match] → save snapshot + send Telegram alert
+RTSP Stream → OpenCV (MOG2 motion filter, free & local)
+  → [motion above threshold] → Claude Vision API
+    → Claude checks frame against your condition
+      → [match] → save snapshot + send Telegram alert
 ```
 
-Claude only gets called when motion is detected above the sensitivity threshold — keeping API costs low.
+Claude is only called when motion is detected — keeping API costs minimal.
 
-## Requirements
+## Features
 
-- Python 3.11+
-- An RTSP camera stream
-- Anthropic API key
-- A Telegram bot token and chat ID
+- **Web dashboard** — live MJPEG feed, alert gallery, real-time log viewer
+- **Multi-camera** — add and monitor unlimited cameras, each with its own condition
+- **Stats** — charts for alerts per day / per camera / per hour
+- **Log filtering** — filter by level (alerts / motion / errors) and text search
+- **Alert management** — search, preview, and delete snapshots from the UI
+- **Settings UI** — configure cameras, API key, and Telegram without editing files
+- **Deploy to Fly.io** — run the dashboard remotely, accessible from anywhere
 
-## Setup
+## Quick start (local)
 
 ```bash
-git clone https://github.com/your-username/camIA.git
+git clone https://github.com/saurabhraj-115/camIA.git
 cd camIA
 pip install -r requirements.txt
+cp config.example.yaml config.yaml   # then edit, or use the web UI
+python3 web_ui.py
 ```
 
-Set your Anthropic API key:
+Open **http://localhost:6789**, go to **⚙ Settings**, and fill in your camera and API details.
+
+To run the monitor headlessly (no web UI):
 ```bash
-export ANTHROPIC_API_KEY=your-key-here
-```
-
-Edit `config.yaml` with your camera and Telegram details:
-```yaml
-rtsp_url: "rtsp://username:password@192.168.1.100:554/stream"
-camera_name: "Front Door"
-telegram_bot_token: "your-bot-token"
-telegram_chat_id: "your-chat-id"
-check_interval_seconds: 2
-motion_sensitivity: 500
-user_condition: "alert me when a person enters through the back door after dark"
-alert_cooldown_seconds: 60
-```
-
-## Run
-
-```bash
-python main.py
+export ANTHROPIC_API_KEY=sk-ant-...
+python3 main.py
 ```
 
 ## Configuration
 
+The easiest way is through the web UI Settings tab. To configure manually, edit `config.yaml`:
+
+```yaml
+anthropic_api_key: "sk-ant-..."
+
+telegram_bot_token: "1234567890:ABCdef..."
+telegram_chat_id:   "123456789"
+
+cameras:
+  - id: cam_front
+    rtsp_url:               "rtsp://user:pass@192.168.1.100:554/stream"
+    camera_name:            "Front Door"
+    user_condition:         "alert me when a person enters through the front door"
+    check_interval_seconds: 2
+    motion_sensitivity:     500
+    alert_cooldown_seconds: 60
+  - id: cam_back
+    rtsp_url:               "rtsp://user:pass@192.168.1.101:554/stream"
+    camera_name:            "Back Garden"
+    user_condition:         "alert me when motion is detected near the shed"
+    check_interval_seconds: 3
+    motion_sensitivity:     300
+    alert_cooldown_seconds: 90
+```
+
+### Configuration reference
+
 | Field | Description | Default |
-|-------|-------------|---------|
-| `rtsp_url` | Full RTSP URL of your camera | — |
-| `camera_name` | Label used in alerts and snapshot filenames | — |
+|---|---|---|
+| `anthropic_api_key` | Anthropic API key (or set `ANTHROPIC_API_KEY` env var) | — |
 | `telegram_bot_token` | Token from [@BotFather](https://t.me/BotFather) | — |
-| `telegram_chat_id` | Your Telegram chat or group ID | — |
-| `check_interval_seconds` | Seconds between frame reads | `2` |
-| `motion_sensitivity` | Min pixel contour area to count as motion | `500` |
-| `user_condition` | Plain English description of what to alert on | — |
-| `alert_cooldown_seconds` | Minimum seconds between consecutive alerts | `60` |
+| `telegram_chat_id` | Your personal or group chat ID | — |
+| `cameras[].rtsp_url` | Full RTSP URL of the camera stream | — |
+| `cameras[].camera_name` | Label for alerts and snapshot filenames | — |
+| `cameras[].user_condition` | Plain English description of what to alert on | — |
+| `cameras[].check_interval_seconds` | Seconds between frame reads | `2` |
+| `cameras[].motion_sensitivity` | Minimum pixel contour area to count as motion | `500` |
+| `cameras[].alert_cooldown_seconds` | Minimum seconds between consecutive alerts | `60` |
 
 ### Writing a good condition
 
-The `user_condition` field is sent directly to Claude as a natural language prompt. Be specific:
-
 ```yaml
-# good
+# good — specific, context-aware
 user_condition: "alert me if a person is visible near the gate after 8pm"
 
 # too vague
 user_condition: "something suspicious"
 ```
 
+## Telegram setup
+
+1. Message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token
+2. Send `/start` to your new bot
+3. Open `https://api.telegram.org/bot<TOKEN>/getUpdates` in your browser
+4. Find `"chat":{"id": YOUR_ID}` — that number is your Chat ID
+5. Paste both into the Settings UI and click **Test Connection**
+
+> Note: Chat IDs from `@userinfobot` are user IDs, not bot chat IDs. Use the `getUpdates` method above.
+
+## Deploy to Fly.io
+
+The web dashboard can be deployed to Fly.io for remote access from anywhere.
+
+> **Note:** Live MJPEG feeds require the RTSP URLs to be reachable from Fly's network. If your cameras are on a local network, the feed won't stream — but alerts, snapshots, and configuration all work.
+
+### First deploy
+
+```bash
+# Install flyctl if needed: https://fly.io/docs/hands-on/install-flyctl/
+fly auth login
+fly apps create camia          # or choose a unique name, update fly.toml
+fly volumes create camia_data --region sin --size 1
+fly secrets set ANTHROPIC_API_KEY=sk-ant-... \
+               TELEGRAM_BOT_TOKEN=... \
+               TELEGRAM_CHAT_ID=...
+fly deploy
+```
+
+### Subsequent deploys
+
+```bash
+fly deploy
+```
+
+### Update secrets
+
+```bash
+fly secrets set ANTHROPIC_API_KEY=sk-ant-new-key
+```
+
+After first deploy, open the Fly URL, go to **⚙ Settings**, add your cameras, and start monitoring.
+
 ## File structure
 
 ```
 camIA/
-├── main.py          # main loop
-├── detector.py      # MOG2 motion detection
-├── vision.py        # Claude Vision API call
-├── notifier.py      # Telegram alert delivery
-├── config.yaml      # your configuration
+├── main.py              # headless monitor loop (one instance per camera)
+├── detector.py          # OpenCV MOG2 motion detection
+├── vision.py            # Claude Vision API
+├── notifier.py          # Telegram alerts
+├── web_ui.py            # Flask dashboard + process manager
+├── templates/
+│   └── index.html       # dashboard UI
+├── config.example.yaml  # template — copy to config.yaml
+├── Dockerfile
+├── fly.toml
+├── entrypoint.sh
 ├── requirements.txt
-└── snapshots/       # saved alert images (auto-created)
+└── snapshots/           # alert images (auto-created, gitignored)
 ```
 
-Alerts are also logged to `alerts.log` with timestamps and Claude's reasons.
-
-## Getting a Telegram bot
-
-1. Message [@BotFather](https://t.me/BotFather) on Telegram
-2. Send `/newbot` and follow the prompts
-3. Copy the token into `config.yaml`
-4. To get your chat ID, message [@userinfobot](https://t.me/userinfobot)
-
-## Out of scope for MVP
-
-- Multi-camera support
-- Web UI
-- Video clip saving (snapshots only)
-- WhatsApp notifications
+Per-camera logs are written to `alerts_{camera_id}.log`. The web dashboard merges and displays all logs.
